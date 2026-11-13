@@ -4,6 +4,32 @@
  */
 package projekakhir.aviaryjuragans.view;
 
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JOptionPane;
+import javax.swing.ListSelectionModel;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.table.DefaultTableModel;
+import projekakhir.aviaryjuragans.dao.MejaDAO;
+import projekakhir.aviaryjuragans.dao.MenuDAO;
+import projekakhir.aviaryjuragans.dao.ReservasiDAO;
+import projekakhir.aviaryjuragans.dao.UserDAO;
+import projekakhir.aviaryjuragans.model.CartItem;
+import projekakhir.aviaryjuragans.model.DetailReservasi;
+import projekakhir.aviaryjuragans.model.Kategori;
+import projekakhir.aviaryjuragans.model.Meja;
+import projekakhir.aviaryjuragans.model.Menu;
+import projekakhir.aviaryjuragans.model.Reservasi;
+import projekakhir.aviaryjuragans.model.User;
+import projekakhir.aviaryjuragans.util.FormatUtil;
+
 /**
  *
  * @author Asus TUF
@@ -12,11 +38,60 @@ public class CustomerMainFrame extends javax.swing.JFrame {
     
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(CustomerMainFrame.class.getName());
 
-    /**
-     * Creates new form CustomerMainFrame
-     */
+    // ===================== DATA & DAO =====================
+    private final User currentUser;
+    private final MenuDAO menuDAO = new MenuDAO();
+    private final MejaDAO mejaDAO = new MejaDAO();
+    private final ReservasiDAO reservasiDAO = new ReservasiDAO();
+
+    private List<Kategori> kategoriList = new ArrayList<>();
+    private List<Menu> menuList = new ArrayList<>();
+    private List<Meja> mejaList = new ArrayList<>();          // hasil "Cek Meja"
+    private final List<CartItem> cart = new ArrayList<>();     // isi tabel "Pesanan"
+    private List<Reservasi> riwayatList = new ArrayList<>();   // isi tab "Riwayat Pesanan"
+
+    // ===== Alias komponen hasil Form Editor (supaya kode lebih mudah dibaca) =====
+    // Tab 1 - Reservation & Orders
+    private javax.swing.JTextField txtTanggal;          // jTextField1
+    private javax.swing.JComboBox<String> cmbJam;       // jComboBox2
+    private javax.swing.JSpinner spnTamu;               // jSpinner2
+    private javax.swing.JButton btnCekMeja;             // jButton5
+    private javax.swing.JComboBox<String> cmbMeja;      // jComboBox1
+    private javax.swing.JComboBox<String> cmbKategori;  // jComboBox4
+    private javax.swing.JTable tblMenu;                 // jTable1
+    private javax.swing.JSpinner spnQty;                // jSpinner1
+    private javax.swing.JButton btnPesan;               // jButton1
+    private javax.swing.JTable tblPesanan;              // jTable2
+    private javax.swing.JButton btnHapus;               // jButton6
+    private javax.swing.JLabel lblJumlahBayar;          // jLabel1
+    private javax.swing.JButton btnKonfirmasi;          // jButton2
+    private javax.swing.JLabel lblTanggal;              // jLabel10
+    private javax.swing.JLabel lblJam;                  // jLabel11
+    private javax.swing.JLabel lblMeja;                 // jLabel12
+    // Tab 2 - Riwayat
+    private javax.swing.JTable tblRiwayat;              // jTable3
+    private javax.swing.JButton btnDetail;              // jButton3
+    private javax.swing.JButton btnBatalkan;            // jButton7
+    // Header
+    private javax.swing.JLabel lblWelcome;              // jLabel2
+    private javax.swing.JButton btnLogout;              // jButton4
+
+    /** Dipakai Form Editor (tanpa user, tanpa akses database). */
     public CustomerMainFrame() {
+        this(null);
+    }
+
+    /**
+     * Dipanggil dari FormLogin setelah login berhasil:
+     * <pre>new CustomerMainFrame(user).setVisible(true);</pre>
+     */
+    public CustomerMainFrame(User user) {
+        this.currentUser = user;
         initComponents();
+        setLocationRelativeTo(null);
+        if (user != null) {
+            setupCustomLogic();
+        }
     }
 
     /**
@@ -377,6 +452,463 @@ public class CustomerMainFrame extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
+    // =====================================================================
+    //  LOGIKA CUSTOMER (di luar blok Generated Code, aman dari Form Editor)
+    // =====================================================================
+
+    private static final String PILIH_MEJA = "- klik Cek Meja -";
+
+    private void setupCustomLogic() {
+        // ---- alias komponen ----
+        txtTanggal = jTextField1;
+        cmbJam = jComboBox2;
+        spnTamu = jSpinner2;
+        btnCekMeja = jButton5;
+        cmbMeja = jComboBox1;
+        cmbKategori = jComboBox4;
+        tblMenu = jTable1;
+        spnQty = jSpinner1;
+        btnPesan = jButton1;
+        tblPesanan = jTable2;
+        btnHapus = jButton6;
+        lblJumlahBayar = jLabel1;
+        btnKonfirmasi = jButton2;
+        lblTanggal = jLabel10;
+        lblJam = jLabel11;
+        lblMeja = jLabel12;
+        tblRiwayat = jTable3;
+        btnDetail = jButton3;
+        btnBatalkan = jButton7;
+        lblWelcome = jLabel2;
+        btnLogout = jButton4;
+
+        lblWelcome.setText("Welcome to Aviary, " + currentUser.namaLengkap());
+
+        // ---- input reservasi ----
+        txtTanggal.setText(LocalDate.now().format(FormatUtil.TANGGAL));
+        txtTanggal.setToolTipText("Format: dd-MM-yyyy, contoh " + LocalDate.now().plusDays(1).format(FormatUtil.TANGGAL));
+
+        List<String> slotJam = new ArrayList<>();
+        for (int h = 10; h <= 21; h++) {
+            slotJam.add(String.format("%02d:00", h));
+        }
+        cmbJam.setModel(new DefaultComboBoxModel<>(slotJam.toArray(new String[0])));
+        spnTamu.setModel(new SpinnerNumberModel(2, 1, 20, 1));
+        spnQty.setModel(new SpinnerNumberModel(1, 1, 50, 1));
+        cmbMeja.setModel(new DefaultComboBoxModel<>(new String[]{PILIH_MEJA}));
+
+        // ---- tabel ----
+        tblMenu.setModel(buatModel("Menu", "Kategori", "Harga"));
+        tblPesanan.setModel(buatModel("Menu", "Harga", "Qty", "Subtotal"));
+        tblRiwayat.setModel(buatModel("Kode", "Tanggal", "Jam", "Meja", "Tamu", "Total", "Status"));
+        tblMenu.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tblPesanan.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tblRiwayat.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        // ---- data awal dari database ----
+        try {
+            loadKategori();
+            loadMenu();
+            loadRiwayat();
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+        refreshPesanan();
+
+        // ---- listener (dipasang setelah data awal terisi) ----
+        // Kalau tanggal/jam/jumlah tamu berubah, hasil "Cek Meja" sebelumnya tidak berlaku lagi.
+        txtTanggal.getDocument().addDocumentListener(new DocumentListener() {
+            @Override public void insertUpdate(DocumentEvent e) { resetPilihanMeja(); }
+            @Override public void removeUpdate(DocumentEvent e) { resetPilihanMeja(); }
+            @Override public void changedUpdate(DocumentEvent e) { resetPilihanMeja(); }
+        });
+        cmbJam.addActionListener(e -> resetPilihanMeja());
+        spnTamu.addChangeListener(e -> resetPilihanMeja());
+        cmbMeja.addActionListener(e -> refreshRingkasanJadwal());
+
+        cmbKategori.addActionListener(e -> {
+            try {
+                loadMenu();
+            } catch (SQLException ex) {
+                tampilkanErrorDatabase(ex);
+            }
+        });
+
+        btnCekMeja.addActionListener(e -> cekMeja());
+        btnPesan.addActionListener(e -> tambahPesanan());
+        btnHapus.addActionListener(e -> hapusPesanan());
+        btnKonfirmasi.addActionListener(e -> konfirmasiReservasi());
+        btnDetail.addActionListener(e -> lihatDetail());
+        btnBatalkan.addActionListener(e -> batalkanReservasi());
+        btnLogout.addActionListener(e -> logout());
+
+        // Riwayat dimuat ulang setiap kali tab "Riwayat Pesanan" dibuka
+        jTabbedPane1.addChangeListener(e -> {
+            if (jTabbedPane1.getSelectedIndex() == 1) {
+                try {
+                    loadRiwayat();
+                } catch (SQLException ex) {
+                    tampilkanErrorDatabase(ex);
+                }
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    //  Load data
+    // ------------------------------------------------------------------
+    private void loadKategori() throws SQLException {
+        kategoriList = menuDAO.findAllKategori();
+        List<String> nama = new ArrayList<>();
+        nama.add("Semua");
+        for (Kategori k : kategoriList) {
+            nama.add(k.nama());
+        }
+        cmbKategori.setModel(new DefaultComboBoxModel<>(nama.toArray(new String[0])));
+    }
+
+    private void loadMenu() throws SQLException {
+        int idx = cmbKategori.getSelectedIndex();
+        Integer idKategori = (idx <= 0 || idx > kategoriList.size()) ? null : kategoriList.get(idx - 1).id();
+        menuList = menuDAO.findTersedia(idKategori);
+
+        DefaultTableModel m = (DefaultTableModel) tblMenu.getModel();
+        m.setRowCount(0);
+        for (Menu mn : menuList) {
+            m.addRow(new Object[]{mn.nama(), mn.kategori(), FormatUtil.rupiah(mn.harga())});
+        }
+    }
+
+    private void loadRiwayat() throws SQLException {
+        riwayatList = reservasiDAO.findByUser(currentUser.id());
+        DefaultTableModel m = (DefaultTableModel) tblRiwayat.getModel();
+        m.setRowCount(0);
+        for (Reservasi r : riwayatList) {
+            m.addRow(new Object[]{
+                FormatUtil.kodeReservasi(r.id()),
+                r.tanggal().format(FormatUtil.TANGGAL),
+                r.jam().format(FormatUtil.JAM),
+                r.nomorMeja(),
+                r.jumlahTamu(),
+                FormatUtil.rupiah(r.totalBayar()),
+                r.status()
+            });
+        }
+    }
+
+    // ------------------------------------------------------------------
+    //  Reservasi: input waktu & meja
+    // ------------------------------------------------------------------
+    /** @return tanggal yang diketik user, atau null (dan menampilkan pesan) jika format salah */
+    private LocalDate bacaTanggal() {
+        try {
+            return LocalDate.parse(txtTanggal.getText().trim(), FormatUtil.TANGGAL);
+        } catch (DateTimeParseException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Format tanggal salah. Gunakan dd-MM-yyyy, contoh "
+                    + LocalDate.now().plusDays(1).format(FormatUtil.TANGGAL),
+                    "Tanggal tidak valid", JOptionPane.WARNING_MESSAGE);
+            txtTanggal.requestFocus();
+            return null;
+        }
+    }
+
+    private LocalTime bacaJam() {
+        return LocalTime.parse((String) cmbJam.getSelectedItem());
+    }
+
+    private int bacaJumlahTamu() {
+        return ((Number) spnTamu.getValue()).intValue();
+    }
+
+    /** Tanggal/jam tidak boleh sudah lewat. */
+    private boolean waktuValid(LocalDate tanggal, LocalTime jam) {
+        boolean lewat = tanggal.isBefore(LocalDate.now())
+                || (tanggal.isEqual(LocalDate.now()) && !jam.isAfter(LocalTime.now()));
+        if (lewat) {
+            JOptionPane.showMessageDialog(this,
+                    "Waktu reservasi harus di masa depan.",
+                    "Waktu tidak valid", JOptionPane.WARNING_MESSAGE);
+        }
+        return !lewat;
+    }
+
+    private void cekMeja() {
+        LocalDate tanggal = bacaTanggal();
+        if (tanggal == null) {
+            return;
+        }
+        LocalTime jam = bacaJam();
+        if (!waktuValid(tanggal, jam)) {
+            return;
+        }
+        try {
+            mejaList = mejaDAO.findAvailable(tanggal, jam, bacaJumlahTamu());
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+            return;
+        }
+
+        if (mejaList.isEmpty()) {
+            cmbMeja.setModel(new DefaultComboBoxModel<>(new String[]{PILIH_MEJA}));
+            JOptionPane.showMessageDialog(this,
+                    "Tidak ada meja kosong untuk " + bacaJumlahTamu() + " tamu pada "
+                    + tanggal.format(FormatUtil.TANGGAL) + " pukul " + jam.format(FormatUtil.JAM)
+                    + ".\nCoba ubah jam atau tanggal.",
+                    "Meja penuh", JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            String[] teks = mejaList.stream().map(Meja::toString).toArray(String[]::new);
+            cmbMeja.setModel(new DefaultComboBoxModel<>(teks));
+        }
+        refreshRingkasanJadwal();
+    }
+
+    private Meja mejaTerpilih() {
+        int i = cmbMeja.getSelectedIndex();
+        return (i >= 0 && i < mejaList.size()) ? mejaList.get(i) : null;
+    }
+
+    private void resetPilihanMeja() {
+        mejaList = new ArrayList<>();
+        cmbMeja.setModel(new DefaultComboBoxModel<>(new String[]{PILIH_MEJA}));
+        refreshRingkasanJadwal();
+    }
+
+    /** Mengisi label Tanggal / Jam / Meja di panel "Jadwal Reservasi". */
+    private void refreshRingkasanJadwal() {
+        String tgl = txtTanggal.getText().trim();
+        String jam = (String) cmbJam.getSelectedItem();
+        Meja m = mejaTerpilih();
+        lblTanggal.setText("Tgl: " + tgl);
+        lblJam.setText("Jam: " + (jam == null ? "-" : jam));
+        lblMeja.setText("Meja: " + (m == null ? "-" : m.nomor()));
+        lblTanggal.setToolTipText("Tanggal: " + tgl);
+        lblJam.setToolTipText("Jam: " + (jam == null ? "-" : jam));
+        lblMeja.setToolTipText(m == null ? "Belum memilih meja" : m.toString());
+    }
+
+    // ------------------------------------------------------------------
+    //  Pesanan (keranjang)
+    // ------------------------------------------------------------------
+    private void tambahPesanan() {
+        int row = tblMenu.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Pilih menu di tabel Daftar Menu dulu.",
+                    "Belum ada menu dipilih", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        Menu menu = menuList.get(row);
+        int qty = ((Number) spnQty.getValue()).intValue();
+
+        boolean sudahAda = false;
+        for (int i = 0; i < cart.size(); i++) {
+            if (cart.get(i).menu().id() == menu.id()) {
+                cart.set(i, cart.get(i).tambah(qty));   // menu sama -> jumlahnya ditambah
+                sudahAda = true;
+                break;
+            }
+        }
+        if (!sudahAda) {
+            cart.add(new CartItem(menu, qty));
+        }
+        spnQty.setValue(1);
+        refreshPesanan();
+    }
+
+    private void hapusPesanan() {
+        int row = tblPesanan.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Pilih baris di tabel Pesanan yang ingin dihapus.",
+                    "Belum ada pesanan dipilih", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        cart.remove(row);
+        refreshPesanan();
+    }
+
+    private int totalPesanan() {
+        int total = 0;
+        for (CartItem item : cart) {
+            total += item.subtotal();
+        }
+        return total;
+    }
+
+    private void refreshPesanan() {
+        DefaultTableModel m = (DefaultTableModel) tblPesanan.getModel();
+        m.setRowCount(0);
+        for (CartItem item : cart) {
+            m.addRow(new Object[]{
+                item.menu().nama(),
+                FormatUtil.rupiah(item.menu().harga()),
+                item.qty(),
+                FormatUtil.rupiah(item.subtotal())
+            });
+        }
+        lblJumlahBayar.setText("Jumlah bayar: " + FormatUtil.rupiah(totalPesanan()));
+        lblJumlahBayar.setToolTipText(lblJumlahBayar.getText());
+        refreshRingkasanJadwal();
+    }
+
+    // ------------------------------------------------------------------
+    //  Konfirmasi reservasi
+    // ------------------------------------------------------------------
+    private void konfirmasiReservasi() {
+        LocalDate tanggal = bacaTanggal();
+        if (tanggal == null) {
+            return;
+        }
+        LocalTime jam = bacaJam();
+        if (!waktuValid(tanggal, jam)) {
+            return;
+        }
+        Meja meja = mejaTerpilih();
+        if (meja == null) {
+            JOptionPane.showMessageDialog(this,
+                    "Klik \"Cek Meja\" lalu pilih meja yang tersedia.",
+                    "Meja belum dipilih", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (cart.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Pesanan masih kosong. Pilih menu lalu klik \"Pesan\".",
+                    "Pesanan kosong", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        int tamu = bacaJumlahTamu();
+
+        String ringkasan = "Tanggal : " + tanggal.format(FormatUtil.TANGGAL)
+                + "\nJam     : " + jam.format(FormatUtil.JAM)
+                + "\nMeja    : " + meja
+                + "\nTamu    : " + tamu + " orang"
+                + "\nItem    : " + cart.size() + " menu"
+                + "\nTotal   : " + FormatUtil.rupiah(totalPesanan())
+                + "\n\nKonfirmasi reservasi ini?";
+        int pilih = JOptionPane.showConfirmDialog(this, ringkasan, "Konfirmasi Reservasi",
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (pilih != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            int id = reservasiDAO.create(currentUser.id(), meja.id(), tanggal, jam, tamu, cart);
+            JOptionPane.showMessageDialog(this,
+                    "Reservasi berhasil dibuat!\nKode reservasi: " + FormatUtil.kodeReservasi(id)
+                    + "\nStatus: Menunggu konfirmasi admin.",
+                    "Berhasil", JOptionPane.INFORMATION_MESSAGE);
+            cart.clear();
+            refreshPesanan();
+            resetPilihanMeja();
+            loadRiwayat();
+        } catch (IllegalStateException ex) {
+            // aturan bisnis (meja diambil orang lain, menu habis, dst)
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Reservasi gagal", JOptionPane.WARNING_MESSAGE);
+            resetPilihanMeja();
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    //  Riwayat
+    // ------------------------------------------------------------------
+    private Reservasi riwayatTerpilih() {
+        int row = tblRiwayat.getSelectedRow();
+        if (row < 0 || row >= riwayatList.size()) {
+            JOptionPane.showMessageDialog(this, "Pilih salah satu reservasi di tabel dulu.",
+                    "Belum ada yang dipilih", JOptionPane.INFORMATION_MESSAGE);
+            return null;
+        }
+        return riwayatList.get(row);
+    }
+
+    private void lihatDetail() {
+        Reservasi r = riwayatTerpilih();
+        if (r == null) {
+            return;
+        }
+        try {
+            List<DetailReservasi> items = reservasiDAO.findDetail(r.id());
+            StringBuilder sb = new StringBuilder();
+            sb.append("Kode   : ").append(FormatUtil.kodeReservasi(r.id()))
+              .append("\nJadwal : ").append(r.tanggal().format(FormatUtil.TANGGAL))
+              .append(" ").append(r.jam().format(FormatUtil.JAM))
+              .append("\nMeja   : ").append(r.nomorMeja())
+              .append(" (").append(r.jumlahTamu()).append(" tamu)")
+              .append("\nStatus : ").append(r.status())
+              .append("\n\nPesanan:\n");
+            for (DetailReservasi d : items) {
+                sb.append(" - ").append(d.namaMenu())
+                  .append("  ").append(d.jumlah()).append(" x ")
+                  .append(FormatUtil.rupiah(d.hargaSatuan()))
+                  .append(" = ").append(FormatUtil.rupiah(d.subtotal())).append("\n");
+            }
+            sb.append("\nTotal  : ").append(FormatUtil.rupiah(r.totalBayar()));
+            JOptionPane.showMessageDialog(this, sb.toString(), "Detail Reservasi",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    private void batalkanReservasi() {
+        Reservasi r = riwayatTerpilih();
+        if (r == null) {
+            return;
+        }
+        int pilih = JOptionPane.showConfirmDialog(this,
+                "Batalkan reservasi " + FormatUtil.kodeReservasi(r.id()) + "?",
+                "Batalkan Reservasi", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (pilih != JOptionPane.YES_OPTION) {
+            return;
+        }
+        try {
+            if (reservasiDAO.cancel(r.id(), currentUser.id())) {
+                JOptionPane.showMessageDialog(this, "Reservasi dibatalkan.",
+                        "Berhasil", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Reservasi ini tidak bisa dibatalkan.\n"
+                        + "(Hanya reservasi berstatus Menunggu/Dikonfirmasi yang belum lewat waktunya.)",
+                        "Tidak bisa dibatalkan", JOptionPane.WARNING_MESSAGE);
+            }
+            loadRiwayat();
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    //  Logout & helper
+    // ------------------------------------------------------------------
+    private void logout() {
+        int pilih = JOptionPane.showConfirmDialog(this, "Yakin ingin logout?", "Logout",
+                JOptionPane.YES_NO_OPTION);
+        if (pilih == JOptionPane.YES_OPTION) {
+            dispose();
+            new FormLogin().setVisible(true);
+        }
+    }
+
+    /** Model tabel yang tidak bisa diedit langsung oleh user. */
+    private static DefaultTableModel buatModel(String... kolom) {
+        return new DefaultTableModel(kolom, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+    }
+
+    private void tampilkanErrorDatabase(SQLException ex) {
+        logger.log(java.util.logging.Level.SEVERE, "Database error", ex);
+        JOptionPane.showMessageDialog(this,
+                "Gagal mengakses database:\n" + ex.getMessage()
+                + "\n\nPastikan MySQL menyala, database aviary_db sudah dibuat,"
+                + "\ndan USER/PASSWORD di DBConnection.java sudah benar.",
+                "Error Database", JOptionPane.ERROR_MESSAGE);
+    }
+
     /**
      * @param args the command line arguments
      */
@@ -399,7 +931,23 @@ public class CustomerMainFrame extends javax.swing.JFrame {
         //</editor-fold>
 
         /* Create and display the form */
-        java.awt.EventQueue.invokeLater(() -> new CustomerMainFrame().setVisible(true));
+        // Untuk testing langsung dari file ini: pakai akun demo dari database.
+        // Alur normal: FormLogin -> new CustomerMainFrame(user).setVisible(true)
+        java.awt.EventQueue.invokeLater(() -> {
+            try {
+                User demo = new UserDAO().findByUsername("customer1");
+                if (demo == null) {
+                    javax.swing.JOptionPane.showMessageDialog(null,
+                            "User 'customer1' tidak ada. Jalankan aviary_db.sql dulu.");
+                    return;
+                }
+                new CustomerMainFrame(demo).setVisible(true);
+            } catch (SQLException ex) {
+                logger.log(java.util.logging.Level.SEVERE, null, ex);
+                javax.swing.JOptionPane.showMessageDialog(null,
+                        "Tidak bisa terhubung ke database:\n" + ex.getMessage());
+            }
+        });
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
