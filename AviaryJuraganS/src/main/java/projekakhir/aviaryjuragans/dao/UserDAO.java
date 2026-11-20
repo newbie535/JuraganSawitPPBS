@@ -26,7 +26,20 @@ public class UserDAO {
         }
     }
 
-    public User login(String username, String password) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public User login(String username, String password) throws SQLException {
+    String sql = "SELECT id_user, nama_lengkap, no_hp, username, role "
+            + "FROM users WHERE username = ? AND password = SHA2(?, 256)";
+    try (Connection c = DBConnection.getConnection();
+         PreparedStatement ps = c.prepareStatement(sql)) {
+        ps.setString(1, username);
+        ps.setString(2, password);
+        try (ResultSet rs = ps.executeQuery()) {
+            if (!rs.next()) {
+                return null;   // username/password salah
+            }
+            return new User(rs.getInt("id_user"), rs.getString("nama_lengkap"),
+                    rs.getString("no_hp"), rs.getString("username"), rs.getString("role"));
+            }
+        }
     }
 }
