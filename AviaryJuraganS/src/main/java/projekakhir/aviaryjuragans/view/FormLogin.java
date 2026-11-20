@@ -7,12 +7,16 @@ package projekakhir.aviaryjuragans.view;
 import java.awt.Color;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.sql.Connection;
 import java.sql.SQLException;
+
 import javax.swing.JOptionPane;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
+
 import projekakhir.aviaryjuragans.dao.UserDAO;
 import projekakhir.aviaryjuragans.model.User;
+import projekakhir.aviaryjuragans.util.DBConnection;
 
 /**
  *
@@ -21,13 +25,15 @@ import projekakhir.aviaryjuragans.model.User;
 public class FormLogin extends javax.swing.JFrame {
     
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(FormLogin.class.getName());
-    
+
     private static final String PLACEHOLDER_USER = "Username";
     private static final String PLACEHOLDER_PASS = "inputpass";
 
+    private final UserDAO userDAO = new UserDAO();
+
     private JTextField txtUsername;
     private JPasswordField txtPassword;
-    
+
     /**
      * Creates new form FormLogin
      */
@@ -35,6 +41,7 @@ public class FormLogin extends javax.swing.JFrame {
         initComponents();
         setLocationRelativeTo(null);
         setupCustomLogic();
+        cekKoneksiAwal();
     }
 
     /**
@@ -111,20 +118,46 @@ public class FormLogin extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void jTextField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField1ActionPerformed
-        // TODO add your handling code here:
         prosesLogin();
     }//GEN-LAST:event_jTextField1ActionPerformed
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-        // TODO add your handling code here:
         prosesLogin();
     }//GEN-LAST:event_jButton1ActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
-        // TODO add your handling code here:
         dispose();
+        new FormRegister().setVisible(true);
     }//GEN-LAST:event_jButton2ActionPerformed
 
+    // =====================================================================
+    //  LOGIKA LOGIN & KONEKSI DATABASE
+    // =====================================================================
+
+    private void setupCustomLogic() {
+        txtUsername = jTextField1;
+        txtPassword = jPasswordField1;
+
+        pasangPlaceholderText(txtUsername, PLACEHOLDER_USER);
+        pasangPlaceholderPassword(txtPassword, PLACEHOLDER_PASS);
+
+        txtPassword.addActionListener(e -> prosesLogin());
+        getRootPane().setDefaultButton(jButton1);
+    }
+
+    /**
+     * Memastikan koneksi ke MySQL lewat DBConnection bisa dibuka saat form dimuat.
+     * Jika belum menyala, tombol Login tetap bisa dicoba (akan menampilkan pesan error jelas).
+     */
+    private void cekKoneksiAwal() {
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null || conn.isClosed()) {
+                logger.warning("Koneksi DBConnection bernilai null atau tertutup.");
+            }
+        } catch (SQLException ex) {
+            logger.log(java.util.logging.Level.WARNING, "Koneksi awal ke database gagal", ex);
+        }
+    }
 
     private void pasangPlaceholderText(JTextField field, String placeholder) {
         field.setText(placeholder);
@@ -194,6 +227,52 @@ public class FormLogin extends javax.swing.JFrame {
         return val;
     }
 
+    private void prosesLogin() {
+        String username = ambilUsername();
+        String password = ambilPassword();
+
+        if (username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Username dan password wajib diisi.",
+                    "Input belum lengkap", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try (Connection conn = DBConnection.getConnection()) {
+            if (conn == null) {
+                JOptionPane.showMessageDialog(this,
+                        "Koneksi database gagal (DBConnection.getConnection() mengembalikan null).",
+                        "Error Koneksi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            User user = userDAO.login(username, password);
+            if (user == null) {
+                JOptionPane.showMessageDialog(this,
+                        "Username atau password salah.",
+                        "Login gagal", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            JOptionPane.showMessageDialog(this,
+                    "Selamat datang, " + user.namaLengkap() + "!",
+                    "Login berhasil", JOptionPane.INFORMATION_MESSAGE);
+
+            dispose();
+            if ("ADMIN".equalsIgnoreCase(user.role())) {
+                new AdminMainFrame(user).setVisible(true);
+            } else {
+                new CustomerMainFrame(user).setVisible(true);
+            }
+        } catch (SQLException ex) {
+            logger.log(java.util.logging.Level.SEVERE, "Login error", ex);
+            JOptionPane.showMessageDialog(this,
+                    "Gagal mengakses database:\n" + ex.getMessage()
+                    + "\n\nPastikan MySQL aktif, database sudah diimport, dan konfigurasi di DBConnection.java sesuai.",
+                    "Error Database", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     /**
      * @param args the command line arguments
      */
@@ -214,7 +293,7 @@ public class FormLogin extends javax.swing.JFrame {
             logger.log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
-        
+
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(() -> new FormLogin().setVisible(true));
     }
@@ -227,12 +306,4 @@ public class FormLogin extends javax.swing.JFrame {
     private javax.swing.JPasswordField jPasswordField1;
     private javax.swing.JTextField jTextField1;
     // End of variables declaration//GEN-END:variables
-
-    private void setupCustomLogic() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    private void prosesLogin() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
 }
