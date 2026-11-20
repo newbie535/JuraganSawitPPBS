@@ -27,7 +27,7 @@ public class FormLogin extends javax.swing.JFrame {
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(FormLogin.class.getName());
 
     private static final String PLACEHOLDER_USER = "Username";
-    private static final String PLACEHOLDER_PASS = "inputpass";
+    private static final String PLACEHOLDER_PASS = "Password";
 
     private final UserDAO userDAO = new UserDAO();
 
