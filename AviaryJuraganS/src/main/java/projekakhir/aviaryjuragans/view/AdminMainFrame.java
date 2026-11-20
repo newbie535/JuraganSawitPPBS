@@ -4,6 +4,8 @@
  */
 package projekakhir.aviaryjuragans.view;
 
+import projekakhir.aviaryjuragans.model.User;
+
 /**
  *
  * @author Asus TUF
@@ -17,6 +19,10 @@ public class AdminMainFrame extends javax.swing.JFrame {
      */
     public AdminMainFrame() {
         initComponents();
+    }
+
+    AdminMainFrame(User user) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
 
     /**

@@ -4,6 +4,16 @@
  */
 package projekakhir.aviaryjuragans.view;
 
+import java.awt.Color;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.sql.SQLException;
+import javax.swing.JOptionPane;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+import projekakhir.aviaryjuragans.dao.UserDAO;
+import projekakhir.aviaryjuragans.model.User;
+
 /**
  *
  * @author Asus TUF
@@ -11,12 +21,20 @@ package projekakhir.aviaryjuragans.view;
 public class FormLogin extends javax.swing.JFrame {
     
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(FormLogin.class.getName());
+    
+    private static final String PLACEHOLDER_USER = "Username";
+    private static final String PLACEHOLDER_PASS = "inputpass";
 
+    private JTextField txtUsername;
+    private JPasswordField txtPassword;
+    
     /**
      * Creates new form FormLogin
      */
     public FormLogin() {
         initComponents();
+        setLocationRelativeTo(null);
+        setupCustomLogic();
     }
 
     /**
@@ -94,15 +112,87 @@ public class FormLogin extends javax.swing.JFrame {
 
     private void jTextField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField1ActionPerformed
         // TODO add your handling code here:
+        prosesLogin();
     }//GEN-LAST:event_jTextField1ActionPerformed
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
         // TODO add your handling code here:
+        prosesLogin();
     }//GEN-LAST:event_jButton1ActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
         // TODO add your handling code here:
+        dispose();
     }//GEN-LAST:event_jButton2ActionPerformed
+
+
+    private void pasangPlaceholderText(JTextField field, String placeholder) {
+        field.setText(placeholder);
+        field.setForeground(Color.GRAY);
+
+        field.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (placeholder.equals(field.getText()) && Color.GRAY.equals(field.getForeground())) {
+                    field.setText("");
+                    field.setForeground(Color.BLACK);
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (field.getText().trim().isEmpty()) {
+                    field.setText(placeholder);
+                    field.setForeground(Color.GRAY);
+                }
+            }
+        });
+    }
+
+    private void pasangPlaceholderPassword(JPasswordField field, String placeholder) {
+        char echoDefault = field.getEchoChar();
+        field.setText(placeholder);
+        field.setForeground(Color.GRAY);
+        field.setEchoChar((char) 0);
+
+        field.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                String current = new String(field.getPassword());
+                if (placeholder.equals(current) && Color.GRAY.equals(field.getForeground())) {
+                    field.setText("");
+                    field.setForeground(Color.BLACK);
+                    field.setEchoChar(echoDefault == 0 ? '*' : echoDefault);
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                String current = new String(field.getPassword());
+                if (current.isEmpty()) {
+                    field.setText(placeholder);
+                    field.setForeground(Color.GRAY);
+                    field.setEchoChar((char) 0);
+                }
+            }
+        });
+    }
+
+    private String ambilUsername() {
+        String val = txtUsername.getText().trim();
+        if (PLACEHOLDER_USER.equals(val) && Color.GRAY.equals(txtUsername.getForeground())) {
+            return "";
+        }
+        return val;
+    }
+
+    private String ambilPassword() {
+        String val = new String(txtPassword.getPassword());
+        if (PLACEHOLDER_PASS.equals(val) && Color.GRAY.equals(txtPassword.getForeground())) {
+            return "";
+        }
+        return val;
+    }
 
     /**
      * @param args the command line arguments
@@ -124,7 +214,7 @@ public class FormLogin extends javax.swing.JFrame {
             logger.log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
-
+        
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(() -> new FormLogin().setVisible(true));
     }
@@ -137,4 +227,12 @@ public class FormLogin extends javax.swing.JFrame {
     private javax.swing.JPasswordField jPasswordField1;
     private javax.swing.JTextField jTextField1;
     // End of variables declaration//GEN-END:variables
+
+    private void setupCustomLogic() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    private void prosesLogin() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
 }
