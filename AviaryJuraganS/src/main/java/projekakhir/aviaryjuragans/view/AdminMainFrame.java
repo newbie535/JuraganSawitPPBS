@@ -4,7 +4,40 @@
  */
 package projekakhir.aviaryjuragans.view;
 
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JSpinner;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.table.DefaultTableModel;
+
+import projekakhir.aviaryjuragans.dao.MejaDAO;
+import projekakhir.aviaryjuragans.dao.MenuDAO;
+import projekakhir.aviaryjuragans.dao.ReservasiDAO;
+import projekakhir.aviaryjuragans.model.DetailReservasi;
+import projekakhir.aviaryjuragans.model.Kategori;
+import projekakhir.aviaryjuragans.model.LogAktivitas;
+import projekakhir.aviaryjuragans.model.MejaAdmin;
+import projekakhir.aviaryjuragans.model.MenuAdmin;
+import projekakhir.aviaryjuragans.model.OrderAdmin;
+import projekakhir.aviaryjuragans.model.RingkasanLaporan;
 import projekakhir.aviaryjuragans.model.User;
+import projekakhir.aviaryjuragans.util.FormatUtil;
 
 /**
  *
@@ -14,15 +47,36 @@ public class AdminMainFrame extends javax.swing.JFrame {
     
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(AdminMainFrame.class.getName());
 
+    // ===================== DATA & DAO =====================
+    private final User currentUser;
+    private final MenuDAO menuDAO = new MenuDAO();
+    private final MejaDAO mejaDAO = new MejaDAO();
+    private final ReservasiDAO reservasiDAO = new ReservasiDAO();
+
+    // List ini sejajar dengan baris tabel: baris ke-n di tabel = elemen ke-n di list
+    private List<Kategori> kategoriList = List.of();
+    private List<MenuAdmin> menuList = List.of();
+    private List<MejaAdmin> mejaList = List.of();
+    private List<OrderAdmin> orderList = List.of();
+
     /**
      * Creates new form AdminMainFrame
      */
     public AdminMainFrame() {
-        initComponents();
+        this(null);
     }
 
-    AdminMainFrame(User user) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    /**
+     * Dipanggil dari FormLogin setelah login berhasil sebagai admin:
+     * <pre>new AdminMainFrame(user).setVisible(true);</pre>
+     */
+    public AdminMainFrame(User user) {
+        this.currentUser = user;
+        initComponents();
+        setLocationRelativeTo(null);
+        if (user != null) {
+            setupCustomLogic();
+        }
     }
 
     /**
@@ -642,6 +696,699 @@ public class AdminMainFrame extends javax.swing.JFrame {
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
+
+    // =====================================================================
+    //  KERANGKA ADMIN  (milik Orang 1)
+    //  Isi sementara supaya form bisa dijalankan; ganti dengan versi Orang 1
+    //  jika sudah ada. Method C2-C5 di bawahnya tidak perlu diubah.
+    // =====================================================================
+
+    private static final String[] STATUS_MENU = {"Tersedia", "Habis"};
+    private static final String[] STATUS_ORDER = {"Menunggu", "Dikonfirmasi", "Selesai", "Dibatalkan"};
+    private static final String[] AREA_DEFAULT = {"Indoor", "Outdoor", "VIP"};
+    private static final int TAB_ORDER = 2;
+    private static final int TAB_LAPORAN = 3;
+    private static final int BATAS_LOG = 200;
+
+    // ---- alias komponen: Management Menu ----
+    private JTextField txtNamaMenu;             // jTextField1
+    private JComboBox<String> cmbKategoriMenu;  // jComboBox2
+    private JTextField txtHargaMenu;            // jTextField2
+    private JComboBox<String> cmbStatusMenu;    // jComboBox1
+    private JButton btnSimpanMenu;              // jButton5
+    private JButton btnUpdateMenu;              // jButton1
+    private JButton btnHapusMenu;               // jButton6
+    private JButton btnClearMenu;               // jButton7
+    private JTextField txtCariMenu;             // jTextField3
+    private JButton btnCariMenu;                // jButton2
+    private JTable tblMenu;                     // jTable1
+
+    // ---- alias komponen: Management Meja ----
+    private JTextField txtNomorMeja;            // jTextField4
+    private JSpinner spnKapasitas;              // jSpinner1
+    private JComboBox<String> cmbAreaMeja;      // jComboBox4
+    private JButton btnSimpanMeja;              // jButton8
+    private JButton btnUpdateMeja;              // jButton9
+    private JButton btnHapusMeja;               // jButton10
+    private JButton btnClearMeja;               // jButton11
+    private JTable tblMeja;                     // jTable8
+
+    // ---- alias komponen: Management Order ----
+    private JTextField txtTanggalOrder;         // jTextField5
+    private JButton btnCariOrder;               // jButton12
+    private JTable tblOrder;                    // jTable5
+    private JComboBox<String> cmbStatusOrder;   // jComboBox3
+    private JButton btnDetailOrder;             // jButton13
+    private JButton btnUpdateStatusOrder;       // jButton4
+
+    // ---- alias komponen: Laporan Aktivitas ----
+    private JLabel lblPendapatan;               // jLabel12
+    private JLabel lblJumlahReservasi;          // jLabel13
+    private JTable tblTransaksi;                // jTable9
+    private JTable tblLog;                      // jTable10
+
+    private void setupCustomLogic() {
+        setTitle("Aviary Cafe - Admin: " + currentUser.namaLengkap());
+
+        // ---- alias komponen ----
+        txtNamaMenu = jTextField1;
+        cmbKategoriMenu = jComboBox2;
+        txtHargaMenu = jTextField2;
+        cmbStatusMenu = jComboBox1;
+        btnSimpanMenu = jButton5;
+        btnUpdateMenu = jButton1;
+        btnHapusMenu = jButton6;
+        btnClearMenu = jButton7;
+        txtCariMenu = jTextField3;
+        btnCariMenu = jButton2;
+        tblMenu = jTable1;
+
+        txtNomorMeja = jTextField4;
+        spnKapasitas = jSpinner1;
+        cmbAreaMeja = jComboBox4;
+        btnSimpanMeja = jButton8;
+        btnUpdateMeja = jButton9;
+        btnHapusMeja = jButton10;
+        btnClearMeja = jButton11;
+        tblMeja = jTable8;
+
+        txtTanggalOrder = jTextField5;
+        btnCariOrder = jButton12;
+        tblOrder = jTable5;
+        cmbStatusOrder = jComboBox3;
+        btnDetailOrder = jButton13;
+        btnUpdateStatusOrder = jButton4;
+
+        lblPendapatan = jLabel12;
+        lblJumlahReservasi = jLabel13;
+        tblTransaksi = jTable9;
+        tblLog = jTable10;
+
+        // ---- hapus teks contoh dari Form Editor ----
+        txtNamaMenu.setText("");
+        txtHargaMenu.setText("");
+        txtCariMenu.setText("");
+        txtNomorMeja.setText("");
+        txtTanggalOrder.setText("");
+        txtHargaMenu.setToolTipText("Angka saja, contoh 25000");
+        txtCariMenu.setToolTipText("Cari nama menu; kosongkan untuk menampilkan semua");
+        txtTanggalOrder.setToolTipText("Format dd-MM-yyyy; kosongkan untuk semua tanggal");
+
+        // ---- model combo & spinner ----
+        cmbStatusMenu.setModel(new DefaultComboBoxModel<>(STATUS_MENU));
+        cmbStatusOrder.setModel(new DefaultComboBoxModel<>(STATUS_ORDER));
+        cmbKategoriMenu.setModel(new DefaultComboBoxModel<>());
+        cmbAreaMeja.setModel(new DefaultComboBoxModel<>(AREA_DEFAULT));
+        cmbAreaMeja.setEditable(true);
+        spnKapasitas.setModel(new SpinnerNumberModel(2, 1, 50, 1));
+
+        // ---- tabel ----
+        tblMenu.setModel(buatModel("Menu", "Kategori", "Harga", "Status"));
+        tblMeja.setModel(buatModel("Nomor", "Kapasitas", "Area", "Status"));
+        tblOrder.setModel(buatModel("Kode", "Tanggal", "Jam", "Customer", "Meja", "Tamu", "Total", "Status"));
+        tblTransaksi.setModel(buatModel("Kode", "Tanggal", "Customer", "Meja", "Total"));
+        tblLog.setModel(buatModel("Waktu", "User", "Aktivitas"));
+        for (JTable t : new JTable[]{tblMenu, tblMeja, tblOrder, tblTransaksi, tblLog}) {
+            t.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        }
+        aturKolom(tblMenu, 200, 100, 90, 80);
+        aturKolom(tblMeja, 80, 80, 100, 80);
+        aturKolom(tblOrder, 80, 90, 60, 140, 60, 50, 100, 100);
+        aturKolom(tblTransaksi, 80, 90, 160, 60, 100);
+        aturKolom(tblLog, 150, 100, 400);
+
+        // ---- data awal ----
+        try {
+            loadKategori();
+            loadMenu();
+            loadMeja();
+            loadOrder();
+            loadLaporan();
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+
+        // ---- listener (dipasang setelah data awal terisi) ----
+        tblMenu.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                isiFormMenuDariTabel();
+            }
+        });
+        tblMeja.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                isiFormMejaDariTabel();
+            }
+        });
+        tblOrder.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                pilihStatusDariOrder();
+            }
+        });
+
+        btnSimpanMenu.addActionListener(e -> simpanMenu());
+        btnUpdateMenu.addActionListener(e -> updateMenu());
+        btnHapusMenu.addActionListener(e -> hapusMenu());
+        btnClearMenu.addActionListener(e -> clearFormMenu());
+        btnCariMenu.addActionListener(e -> cariMenu());
+        txtCariMenu.addActionListener(e -> cariMenu());
+
+        btnSimpanMeja.addActionListener(e -> simpanMeja());
+        btnUpdateMeja.addActionListener(e -> updateMeja());
+        btnHapusMeja.addActionListener(e -> hapusMeja());
+        btnClearMeja.addActionListener(e -> clearFormMeja());
+
+        btnCariOrder.addActionListener(e -> cariOrder());
+        txtTanggalOrder.addActionListener(e -> cariOrder());
+        btnUpdateStatusOrder.addActionListener(e -> updateStatusOrder());
+        btnDetailOrder.addActionListener(e -> detailOrder());
+
+        // Order & laporan dimuat ulang tiap tab dibuka, supaya admin selalu
+        // melihat data terbaru (mis. reservasi baru dari customer)
+        jTabbedPane2.addChangeListener(e -> {
+            int tab = jTabbedPane2.getSelectedIndex();
+            try {
+                if (tab == TAB_ORDER) {
+                    loadOrder();
+                } else if (tab == TAB_LAPORAN) {
+                    loadLaporan();
+                }
+            } catch (SQLException ex) {
+                tampilkanErrorDatabase(ex);
+            }
+        });
+
+        pasangMenuLogout();
+        pack();
+        setLocationRelativeTo(null);
+    }
+
+    /** Desain form admin tidak punya tombol logout, jadi dibuat lewat menu bar. */
+    private void pasangMenuLogout() {
+        JMenuItem itemLogout = new JMenuItem("Logout");
+        itemLogout.addActionListener(e -> {
+            if (konfirmasi("Yakin ingin logout?", "Logout")) {
+                dispose();
+                new FormLogin().setVisible(true);
+            }
+        });
+        JMenu menuAkun = new JMenu("Akun");
+        menuAkun.add(itemLogout);
+        JMenuBar bar = new JMenuBar();
+        bar.add(menuAkun);
+        setJMenuBar(bar);
+    }
+
+    // ---- helper bersama ----
+
+    /** Model tabel yang selnya tidak bisa diedit langsung. */
+    private static DefaultTableModel buatModel(String... kolom) {
+        return new DefaultTableModel(kolom, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+    }
+
+    /** Atur lebar awal kolom, berurutan dari kolom pertama. */
+    private static void aturKolom(JTable tabel, int... lebar) {
+        for (int i = 0; i < lebar.length && i < tabel.getColumnCount(); i++) {
+            tabel.getColumnModel().getColumn(i).setPreferredWidth(lebar[i]);
+        }
+    }
+
+    private void info(String pesan) {
+        JOptionPane.showMessageDialog(this, pesan, "Informasi", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void peringatan(String pesan) {
+        JOptionPane.showMessageDialog(this, pesan, "Perhatian", JOptionPane.WARNING_MESSAGE);
+    }
+
+    private boolean konfirmasi(String pesan, String judul) {
+        return JOptionPane.showConfirmDialog(this, pesan, judul, JOptionPane.YES_NO_OPTION)
+                == JOptionPane.YES_OPTION;
+    }
+
+    private void tampilkanErrorDatabase(SQLException ex) {
+        logger.log(java.util.logging.Level.SEVERE, "Database error", ex);
+        JOptionPane.showMessageDialog(this,
+                "Gagal mengakses database:\n" + ex.getMessage()
+                + "\n\nPastikan MySQL menyala, database aviary_db sudah dibuat,"
+                + "\ndan USER/PASSWORD di DBConnection.java sudah benar.",
+                "Error Database", JOptionPane.ERROR_MESSAGE);
+    }
+
+    /** @return indeks baris terpilih, atau -1 (dengan pesan) jika belum ada yang dipilih. */
+    private int barisTerpilih(JTable tabel, int jumlahData, String pesan) {
+        int row = tabel.getSelectedRow();
+        if (row < 0 || row >= jumlahData) {
+            peringatan(pesan);
+            return -1;
+        }
+        return row;
+    }
+
+    // =====================================================================
+    //  C2. MANAGEMENT MENU  (milik Orang 3)
+    // =====================================================================
+
+    private record InputMenu(int idKategori, String nama, int harga, String status) {
+    }
+
+    private void loadKategori() throws SQLException {
+        kategoriList = menuDAO.findAllKategori();
+        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
+        for (Kategori k : kategoriList) {
+            model.addElement(k.nama());
+        }
+        cmbKategoriMenu.setModel(model);
+    }
+
+    private void loadMenu() throws SQLException {
+        // trim() penting: DAO membungkus kata kunci dengan %...% dan tidak menerima null
+        menuList = menuDAO.findAllAdmin(txtCariMenu.getText().trim());
+        DefaultTableModel m = (DefaultTableModel) tblMenu.getModel();
+        m.setRowCount(0);
+        for (MenuAdmin mn : menuList) {
+            m.addRow(new Object[]{mn.nama(), mn.kategori(), FormatUtil.rupiah(mn.harga()), mn.status()});
+        }
+    }
+
+    private void cariMenu() {
+        try {
+            loadMenu();
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    /** Klik baris tabel -> form terisi otomatis. */
+    private void isiFormMenuDariTabel() {
+        int row = tblMenu.getSelectedRow();
+        if (row < 0 || row >= menuList.size()) {
+            return;
+        }
+        MenuAdmin m = menuList.get(row);
+        txtNamaMenu.setText(m.nama());
+        txtHargaMenu.setText(String.valueOf(m.harga()));
+        cmbStatusMenu.setSelectedItem(m.status());
+        for (int i = 0; i < kategoriList.size(); i++) {
+            if (kategoriList.get(i).id() == m.idKategori()) {
+                cmbKategoriMenu.setSelectedIndex(i);
+                break;
+            }
+        }
+    }
+
+    private void clearFormMenu() {
+        tblMenu.clearSelection();
+        txtNamaMenu.setText("");
+        txtHargaMenu.setText("");
+        if (cmbKategoriMenu.getItemCount() > 0) {
+            cmbKategoriMenu.setSelectedIndex(0);
+        }
+        cmbStatusMenu.setSelectedIndex(0);
+        txtNamaMenu.requestFocusInWindow();
+    }
+
+    /** Baca & validasi form menu. Mengembalikan null (pesan sudah tampil) jika tidak valid. */
+    private InputMenu bacaInputMenu() {
+        String nama = txtNamaMenu.getText().trim();
+        if (nama.isEmpty() || nama.length() > 100) {
+            peringatan("Nama menu wajib diisi (maksimal 100 karakter).");
+            txtNamaMenu.requestFocusInWindow();
+            return null;
+        }
+        int idx = cmbKategoriMenu.getSelectedIndex();
+        if (idx < 0 || idx >= kategoriList.size()) {
+            peringatan("Pilih kategori menu terlebih dahulu.");
+            return null;
+        }
+        // Toleran terhadap pemisah ribuan: "25.000" dibaca 25000
+        String angka = txtHargaMenu.getText().replaceAll("[^0-9]", "");
+        if (angka.isEmpty() || angka.length() > 9 || Integer.parseInt(angka) <= 0) {
+            peringatan("Harga harus berupa angka lebih dari 0.");
+            txtHargaMenu.requestFocusInWindow();
+            return null;
+        }
+        return new InputMenu(kategoriList.get(idx).id(), nama, Integer.parseInt(angka),
+                (String) cmbStatusMenu.getSelectedItem());
+    }
+
+    private void simpanMenu() {
+        InputMenu in = bacaInputMenu();
+        if (in == null) {
+            return;
+        }
+        try {
+            menuDAO.insert(currentUser.id(), in.idKategori(), in.nama(), in.harga(), in.status());
+            clearFormMenu();
+            loadMenu();
+            info("Menu \"" + in.nama() + "\" berhasil ditambahkan.");
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    private void updateMenu() {
+        int row = barisTerpilih(tblMenu, menuList.size(), "Pilih menu pada tabel yang ingin diubah.");
+        if (row < 0) {
+            return;
+        }
+        InputMenu in = bacaInputMenu();
+        if (in == null) {
+            return;
+        }
+        try {
+            menuDAO.update(currentUser.id(), menuList.get(row).id(),
+                    in.idKategori(), in.nama(), in.harga(), in.status());
+            loadMenu();
+            info("Menu \"" + in.nama() + "\" berhasil diperbarui.");
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    private void hapusMenu() {
+        int row = barisTerpilih(tblMenu, menuList.size(), "Pilih menu pada tabel yang ingin dihapus.");
+        if (row < 0) {
+            return;
+        }
+        MenuAdmin m = menuList.get(row);
+        if (!konfirmasi("Hapus menu \"" + m.nama() + "\"?", "Hapus Menu")) {
+            return;
+        }
+        try {
+            boolean terhapus = menuDAO.delete(currentUser.id(), m.id(), m.nama());
+            clearFormMenu();
+            loadMenu();
+            if (terhapus) {
+                info("Menu \"" + m.nama() + "\" berhasil dihapus.");
+            } else {
+                info("Menu \"" + m.nama() + "\" sudah pernah dipesan sehingga tidak dihapus permanen.\n"
+                        + "Statusnya diubah menjadi \"Habis\" dan tidak tampil lagi di customer.");
+            }
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    // =====================================================================
+    //  C3. MANAGEMENT MEJA  (milik Orang 3)
+    // =====================================================================
+
+    private record InputMeja(String nomor, int kapasitas, String area) {
+    }
+
+    private void loadMeja() throws SQLException {
+        mejaList = mejaDAO.findAllAdmin();
+        DefaultTableModel m = (DefaultTableModel) tblMeja.getModel();
+        m.setRowCount(0);
+        for (MejaAdmin mj : mejaList) {
+            m.addRow(new Object[]{mj.nomor(), mj.kapasitas(), mj.area(), mj.status()});
+        }
+        muatAreaMeja();
+    }
+
+    /** Area bawaan + area yang sudah dipakai di data; admin tetap boleh mengetik area baru. */
+    private void muatAreaMeja() {
+        Object dipilih = cmbAreaMeja.getSelectedItem();
+        Set<String> areas = new LinkedHashSet<>(List.of(AREA_DEFAULT));
+        for (MejaAdmin mj : mejaList) {
+            if (mj.area() != null && !mj.area().isBlank()) {
+                areas.add(mj.area());
+            }
+        }
+        cmbAreaMeja.setModel(new DefaultComboBoxModel<>(areas.toArray(new String[0])));
+        if (dipilih != null && !dipilih.toString().isBlank()) {
+            cmbAreaMeja.setSelectedItem(dipilih);
+        }
+    }
+
+    private void isiFormMejaDariTabel() {
+        int row = tblMeja.getSelectedRow();
+        if (row < 0 || row >= mejaList.size()) {
+            return;
+        }
+        MejaAdmin m = mejaList.get(row);
+        txtNomorMeja.setText(m.nomor());
+        spnKapasitas.setValue(m.kapasitas());
+        cmbAreaMeja.setSelectedItem(m.area());
+    }
+
+    private void clearFormMeja() {
+        tblMeja.clearSelection();
+        txtNomorMeja.setText("");
+        spnKapasitas.setValue(2);
+        cmbAreaMeja.setSelectedIndex(0);
+        txtNomorMeja.requestFocusInWindow();
+    }
+
+    private InputMeja bacaInputMeja() {
+        String nomor = txtNomorMeja.getText().trim();
+        if (nomor.isEmpty() || nomor.length() > 10) {   // kolom nomor_meja = VARCHAR(10)
+            peringatan("Nomor meja wajib diisi (maksimal 10 karakter), contoh M01.");
+            txtNomorMeja.requestFocusInWindow();
+            return null;
+        }
+        Object areaObj = cmbAreaMeja.getSelectedItem();
+        String area = areaObj == null ? "" : areaObj.toString().trim();
+        if (area.isEmpty()) {
+            peringatan("Area meja wajib diisi.");
+            return null;
+        }
+        return new InputMeja(nomor, ((Number) spnKapasitas.getValue()).intValue(), area);
+    }
+
+    private void simpanMeja() {
+        InputMeja in = bacaInputMeja();
+        if (in == null) {
+            return;
+        }
+        try {
+            mejaDAO.insert(currentUser.id(), in.nomor(), in.kapasitas(), in.area());
+            clearFormMeja();
+            loadMeja();
+            info("Meja " + in.nomor() + " berhasil ditambahkan.");
+        } catch (IllegalStateException ex) {      // nomor meja kembar
+            peringatan(ex.getMessage());
+            txtNomorMeja.requestFocusInWindow();
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    /** Update juga mengaktifkan kembali meja yang berstatus Nonaktif (aturan di MejaDAO). */
+    private void updateMeja() {
+        int row = barisTerpilih(tblMeja, mejaList.size(), "Pilih meja pada tabel yang ingin diubah.");
+        if (row < 0) {
+            return;
+        }
+        InputMeja in = bacaInputMeja();
+        if (in == null) {
+            return;
+        }
+        MejaAdmin lama = mejaList.get(row);
+        try {
+            mejaDAO.update(currentUser.id(), lama.id(), in.nomor(), in.kapasitas(), in.area());
+            loadMeja();
+            info("Meja " + in.nomor() + " berhasil diperbarui"
+                    + ("Nonaktif".equals(lama.status()) ? " dan diaktifkan kembali." : "."));
+        } catch (IllegalStateException ex) {
+            peringatan(ex.getMessage());
+            txtNomorMeja.requestFocusInWindow();
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    private void hapusMeja() {
+        int row = barisTerpilih(tblMeja, mejaList.size(), "Pilih meja pada tabel yang ingin dihapus.");
+        if (row < 0) {
+            return;
+        }
+        MejaAdmin m = mejaList.get(row);
+        if (!konfirmasi("Hapus meja " + m.nomor() + "?", "Hapus Meja")) {
+            return;
+        }
+        try {
+            boolean terhapus = mejaDAO.delete(currentUser.id(), m.id(), m.nomor());
+            clearFormMeja();
+            loadMeja();
+            if (terhapus) {
+                info("Meja " + m.nomor() + " berhasil dihapus.");
+            } else {
+                info("Meja " + m.nomor() + " sudah punya riwayat reservasi sehingga tidak dihapus permanen.\n"
+                        + "Statusnya diubah menjadi \"Nonaktif\". Tekan Update untuk mengaktifkannya kembali.");
+            }
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    // =====================================================================
+    //  C4. MANAGEMENT ORDER  (milik Orang 3)
+    // =====================================================================
+
+    /** Muat reservasi sesuai filter tanggal; kolom kosong = semua tanggal. */
+    private void loadOrder() throws SQLException {
+        LocalDate tanggal = null;
+        String teks = txtTanggalOrder.getText().trim();
+        if (!teks.isEmpty()) {
+            try {
+                tanggal = LocalDate.parse(teks, FormatUtil.TANGGAL);
+            } catch (DateTimeParseException ex) {
+                peringatan("Format tanggal salah. Gunakan dd-MM-yyyy, contoh "
+                        + LocalDate.now().format(FormatUtil.TANGGAL) + ".");
+                txtTanggalOrder.requestFocusInWindow();
+                return;
+            }
+        }
+        orderList = reservasiDAO.findAllAdmin(tanggal);
+        DefaultTableModel m = (DefaultTableModel) tblOrder.getModel();
+        m.setRowCount(0);
+        for (OrderAdmin o : orderList) {
+            m.addRow(new Object[]{
+                FormatUtil.kodeReservasi(o.id()),
+                o.tanggal().format(FormatUtil.TANGGAL),
+                o.jam().format(FormatUtil.JAM),
+                o.customer(),
+                o.nomorMeja(),
+                o.jumlahTamu(),
+                FormatUtil.rupiah(o.totalBayar()),
+                o.status()
+            });
+        }
+    }
+
+    private void cariOrder() {
+        try {
+            loadOrder();
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    /** Klik baris order -> combo status menunjukkan status saat ini. */
+    private void pilihStatusDariOrder() {
+        int row = tblOrder.getSelectedRow();
+        if (row >= 0 && row < orderList.size()) {
+            cmbStatusOrder.setSelectedItem(orderList.get(row).status());
+        }
+    }
+
+    /**
+     * Aturan: Selesai dan Dibatalkan bersifat final. Status hanya maju
+     * (Menunggu -> Dikonfirmasi -> Selesai) atau Dibatalkan.
+     */
+    private void updateStatusOrder() {
+        int row = barisTerpilih(tblOrder, orderList.size(), "Pilih reservasi pada tabel terlebih dahulu.");
+        if (row < 0) {
+            return;
+        }
+        OrderAdmin o = orderList.get(row);
+        String kode = FormatUtil.kodeReservasi(o.id());
+        String baru = (String) cmbStatusOrder.getSelectedItem();
+
+        if ("Selesai".equals(o.status()) || "Dibatalkan".equals(o.status())) {
+            peringatan(kode + " berstatus \"" + o.status() + "\" dan sudah final, tidak bisa diubah lagi.");
+            return;
+        }
+        if (baru == null || baru.equals(o.status())) {
+            info("Status " + kode + " sudah \"" + o.status() + "\". Pilih status lain di kotak Status.");
+            return;
+        }
+        if ("Menunggu".equals(baru)) {
+            peringatan("Status tidak bisa dikembalikan ke \"Menunggu\".");
+            return;
+        }
+        if ("Dibatalkan".equals(baru) && !konfirmasi(
+                "Batalkan reservasi " + kode + "?\nStatus ini final dan tidak bisa diubah lagi.",
+                "Batalkan Reservasi")) {
+            return;
+        }
+        if ("Selesai".equals(baru) && !konfirmasi(
+                "Tandai " + kode + " sebagai Selesai?\nStatus ini final dan akan dihitung ke pendapatan.",
+                "Selesaikan Reservasi")) {
+            return;
+        }
+        try {
+            boolean ok = reservasiDAO.updateStatus(currentUser.id(), o.id(), baru);
+            loadOrder();
+            if (ok) {
+                info("Status " + kode + " diubah menjadi \"" + baru + "\".");
+            } else {
+                peringatan("Status tidak berubah. Reservasi sudah final atau statusnya diubah pihak lain.");
+            }
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    private void detailOrder() {
+        int row = barisTerpilih(tblOrder, orderList.size(), "Pilih reservasi pada tabel terlebih dahulu.");
+        if (row < 0) {
+            return;
+        }
+        OrderAdmin o = orderList.get(row);
+        try {
+            List<DetailReservasi> items = reservasiDAO.findDetail(o.id());
+            StringBuilder sb = new StringBuilder();
+            sb.append("Kode     : ").append(FormatUtil.kodeReservasi(o.id()))
+              .append("\nCustomer : ").append(o.customer())
+              .append("\nJadwal   : ").append(o.tanggal().format(FormatUtil.TANGGAL))
+              .append(" ").append(o.jam().format(FormatUtil.JAM))
+              .append("\nMeja     : ").append(o.nomorMeja())
+              .append(" (").append(o.jumlahTamu()).append(" tamu)")
+              .append("\nStatus   : ").append(o.status())
+              .append("\n\nPesanan:\n");
+            if (items.isEmpty()) {
+                sb.append(" (tidak ada pesanan menu)\n");
+            }
+            for (DetailReservasi d : items) {
+                sb.append(" - ").append(d.namaMenu())
+                  .append("  ").append(d.jumlah()).append(" x ")
+                  .append(FormatUtil.rupiah(d.hargaSatuan()))
+                  .append(" = ").append(FormatUtil.rupiah(d.subtotal())).append("\n");
+            }
+            sb.append("\nTotal    : ").append(FormatUtil.rupiah(o.totalBayar()));
+            JOptionPane.showMessageDialog(this, sb.toString(), "Detail Reservasi",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (SQLException ex) {
+            tampilkanErrorDatabase(ex);
+        }
+    }
+
+    // =====================================================================
+    //  C5. LAPORAN AKTIVITAS  (milik Orang 3)
+    // =====================================================================
+
+    private void loadLaporan() throws SQLException {
+        // Pendapatan hanya dari reservasi berstatus Selesai
+        RingkasanLaporan r = reservasiDAO.ringkasan();
+        lblPendapatan.setText("<html>Total Pendapatan<br><b>" + FormatUtil.rupiah(r.totalPendapatan()) + "</b></html>");
+        lblJumlahReservasi.setText("<html>Jumlah Reservasi<br><b>" + r.jumlahReservasi()
+                + "</b> (" + r.jumlahSelesai() + " selesai)</html>");
+
+        DefaultTableModel mt = (DefaultTableModel) tblTransaksi.getModel();
+        mt.setRowCount(0);
+        for (OrderAdmin o : reservasiDAO.findSelesai()) {
+            mt.addRow(new Object[]{
+                FormatUtil.kodeReservasi(o.id()),
+                o.tanggal().format(FormatUtil.TANGGAL),
+                o.customer(),
+                o.nomorMeja(),
+                FormatUtil.rupiah(o.totalBayar())
+            });
+        }
+
+        DefaultTableModel ml = (DefaultTableModel) tblLog.getModel();
+        ml.setRowCount(0);
+        for (LogAktivitas l : reservasiDAO.findLog(BATAS_LOG)) {
+            ml.addRow(new Object[]{l.waktu().format(FormatUtil.WAKTU), l.username(), l.aktivitas()});
+        }
+    }
 
     /**
      * @param args the command line arguments

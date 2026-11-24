@@ -11,13 +11,15 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+
 import projekakhir.aviaryjuragans.model.CartItem;
 import projekakhir.aviaryjuragans.model.DetailReservasi;
+import projekakhir.aviaryjuragans.model.LogAktivitas;
+import projekakhir.aviaryjuragans.model.OrderAdmin;
 import projekakhir.aviaryjuragans.model.Reservasi;
+import projekakhir.aviaryjuragans.model.RingkasanLaporan;
 import projekakhir.aviaryjuragans.util.DBConnection;
 import projekakhir.aviaryjuragans.util.FormatUtil;
-import projekakhir.aviaryjuragans.model.OrderAdmin;
-import projekakhir.aviaryjuragans.model.RingkasanLaporan;
 
 public class ReservasiDAO {
 
@@ -261,5 +263,13 @@ public class ReservasiDAO {
             rs.next();
             return new RingkasanLaporan(rs.getLong(1), rs.getInt(2), rs.getInt(3));
         }
+    }
+
+    /**
+     * Log aktivitas terbaru untuk tab Laporan. LogDAO bersifat package-private,
+     * jadi view mengaksesnya lewat method ini.
+     */
+    public List<LogAktivitas> findLog(int limit) throws SQLException {
+        return new LogDAO().findRecent(limit);
     }
 }
