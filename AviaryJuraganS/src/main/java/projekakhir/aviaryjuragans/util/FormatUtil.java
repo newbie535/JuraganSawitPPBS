@@ -8,6 +8,7 @@ public final class FormatUtil {
 
     public static final DateTimeFormatter TANGGAL = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     public static final DateTimeFormatter JAM = DateTimeFormatter.ofPattern("HH:mm");
+    public static final DateTimeFormatter WAKTU = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
 
     private FormatUtil() {
     }

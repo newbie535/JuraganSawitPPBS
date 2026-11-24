@@ -16,6 +16,8 @@ import projekakhir.aviaryjuragans.model.DetailReservasi;
 import projekakhir.aviaryjuragans.model.Reservasi;
 import projekakhir.aviaryjuragans.util.DBConnection;
 import projekakhir.aviaryjuragans.util.FormatUtil;
+import projekakhir.aviaryjuragans.model.OrderAdmin;
+import projekakhir.aviaryjuragans.model.RingkasanLaporan;
 
 public class ReservasiDAO {
 
@@ -176,6 +178,88 @@ public class ReservasiDAO {
                 c.rollback();
                 throw e;
             }
+        }
+    }
+        // ===================================================================
+    //  KHUSUS ADMIN (Management Order & Laporan)
+    // ===================================================================
+    private static final String SELECT_ORDER =
+            "SELECT r.id_reservasi, r.tanggal, r.jam, u.nama_lengkap, m.nomor_meja, "
+            + "r.jumlah_tamu, r.total_bayar, r.status "
+            + "FROM reservasi r JOIN users u ON u.id_user = r.id_user "
+            + "JOIN meja m ON m.id_meja = r.id_meja ";
+    private static final String ORDER_BY =
+            " ORDER BY r.tanggal DESC, r.jam DESC, r.id_reservasi DESC";
+
+    /** Semua reservasi; tanggal null = semua tanggal. */
+    public List<OrderAdmin> findAllAdmin(LocalDate tanggal) throws SQLException {
+        String sql = SELECT_ORDER + (tanggal != null ? "WHERE r.tanggal = ?" : "") + ORDER_BY;
+        return queryOrder(sql, tanggal);
+    }
+
+    /** Hanya reservasi berstatus 'Selesai' (dianggap transaksi). */
+    public List<OrderAdmin> findSelesai() throws SQLException {
+        return queryOrder(SELECT_ORDER + "WHERE r.status = 'Selesai'" + ORDER_BY, null);
+    }
+
+    private List<OrderAdmin> queryOrder(String sql, LocalDate tanggal) throws SQLException {
+        List<OrderAdmin> list = new ArrayList<>();
+        try (Connection c = DBConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            if (tanggal != null) {
+                ps.setDate(1, Date.valueOf(tanggal));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new OrderAdmin(rs.getInt(1), rs.getDate(2).toLocalDate(),
+                            rs.getTime(3).toLocalTime(), rs.getString(4), rs.getString(5),
+                            rs.getInt(6), rs.getInt(7), rs.getString(8)));
+                }
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Mengubah status reservasi. Reservasi yang sudah 'Selesai' atau 'Dibatalkan'
+     * dianggap final dan tidak bisa diubah lagi.
+     *
+     * @return true jika berhasil
+     */
+    public boolean updateStatus(int adminId, int idReservasi, String statusBaru) throws SQLException {
+        try (Connection c = DBConnection.getConnection()) {
+            c.setAutoCommit(false);
+            try {
+                int rows;
+                try (PreparedStatement ps = c.prepareStatement(
+                        "UPDATE reservasi SET status = ? WHERE id_reservasi = ? "
+                        + "AND status IN ('Menunggu','Dikonfirmasi')")) {
+                    ps.setString(1, statusBaru);
+                    ps.setInt(2, idReservasi);
+                    rows = ps.executeUpdate();
+                }
+                if (rows > 0) {
+                    LogDAO.catat(c, adminId, "Mengubah status " + FormatUtil.kodeReservasi(idReservasi)
+                            + " menjadi " + statusBaru);
+                }
+                c.commit();
+                return rows > 0;
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
+    /** Pendapatan = total reservasi 'Selesai'. */
+    public RingkasanLaporan ringkasan() throws SQLException {
+        String sql = "SELECT COALESCE(SUM(CASE WHEN status = 'Selesai' THEN total_bayar END), 0), "
+                + "COUNT(*), COALESCE(SUM(status = 'Selesai'), 0) FROM reservasi";
+        try (Connection c = DBConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            rs.next();
+            return new RingkasanLaporan(rs.getLong(1), rs.getInt(2), rs.getInt(3));
         }
     }
 }

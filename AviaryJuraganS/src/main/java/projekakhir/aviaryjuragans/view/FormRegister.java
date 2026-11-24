@@ -3,6 +3,9 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
  */
 package projekakhir.aviaryjuragans.view;
+import java.sql.SQLException;
+import javax.swing.JOptionPane;
+import projekakhir.aviaryjuragans.dao.UserDAO;
 
 /**
  *
@@ -15,9 +18,22 @@ public class FormRegister extends javax.swing.JFrame {
     /**
      * Creates new form FormRegister
      */
-    public FormRegister() {
+        public FormRegister() {
         initComponents();
+        setLocationRelativeTo(null);
+        setupCustomLogic();
     }
+
+    private final UserDAO userDAO = new UserDAO();
+
+    // Alias komponen hasil Form Editor (supaya kode lebih mudah dibaca)
+    private javax.swing.JTextField txtNama;              // jTextField1
+    private javax.swing.JTextField txtHp;                // jTextField2
+    private javax.swing.JTextField txtUsername;          // jTextField3
+    private javax.swing.JPasswordField txtPassword;      // jPasswordField1
+    private javax.swing.JPasswordField txtKonfirmasi;    // jPasswordField2
+    private javax.swing.JButton btnDaftar;               // jButton1
+    private javax.swing.JButton btnKembali;              // jButton2
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -145,6 +161,89 @@ public class FormRegister extends javax.swing.JFrame {
         // TODO add your handling code here:
     }//GEN-LAST:event_jPasswordField1ActionPerformed
 
+        // =====================================================================
+    //  LOGIKA REGISTER
+    // =====================================================================
+
+    private void setupCustomLogic() {
+        txtNama = jTextField1;
+        txtHp = jTextField2;
+        txtUsername = jTextField3;
+        txtPassword = jPasswordField1;
+        txtKonfirmasi = jPasswordField2;
+        btnDaftar = jButton1;
+        btnKembali = jButton2;
+
+        // Teks bawaan desain ("Nama Lengkap", "Password", dst.) dikosongkan,
+        // karena tiap field sudah punya label di atasnya.
+        txtNama.setText("");
+        txtHp.setText("");
+        txtUsername.setText("");
+        txtPassword.setText("");
+        txtKonfirmasi.setText("");
+
+        btnDaftar.addActionListener(e -> daftar());
+        btnKembali.addActionListener(e -> kembaliKeLogin());
+        getRootPane().setDefaultButton(btnDaftar);   // tekan Enter = Daftar
+    }
+
+    private void daftar() {
+        String nama = txtNama.getText().trim();
+        String hp = txtHp.getText().replaceAll("[\\s-]", "");
+        String username = txtUsername.getText().trim();
+        String password = new String(txtPassword.getPassword());
+        String konfirmasi = new String(txtKonfirmasi.getPassword());
+
+        String error = validasi(nama, hp, username, password, konfirmasi);
+        if (error != null) {
+            JOptionPane.showMessageDialog(this, error, "Data belum valid", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            userDAO.register(nama, hp, username, password);
+            JOptionPane.showMessageDialog(this,
+                    "Akun berhasil dibuat! Silakan login dengan username \"" + username + "\".",
+                    "Registrasi berhasil", JOptionPane.INFORMATION_MESSAGE);
+            kembaliKeLogin();
+        } catch (IllegalStateException ex) {
+            // username sudah dipakai
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Registrasi gagal", JOptionPane.WARNING_MESSAGE);
+            txtUsername.requestFocus();
+        } catch (SQLException ex) {
+            logger.log(java.util.logging.Level.SEVERE, "Register error", ex);
+            JOptionPane.showMessageDialog(this,
+                    "Gagal mengakses database:\n" + ex.getMessage()
+                    + "\n\nPastikan MySQL aktif, database sudah diimport, dan konfigurasi di DBConnection.java sesuai.",
+                    "Error Database", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /** @return pesan kesalahan, atau null jika semua data valid */
+    private String validasi(String nama, String hp, String username, String password, String konfirmasi) {
+        if (nama.length() < 3 || nama.length() > 100) {
+            return "Nama lengkap harus 3 - 100 karakter.";
+        }
+        if (!hp.matches("\\+?\\d{9,15}")) {
+            return "Nomor HP tidak valid. Gunakan 9 - 15 digit, contoh 081234567890.";
+        }
+        if (!username.matches("[A-Za-z0-9_]{4,20}")) {
+            return "Username harus 4 - 20 karakter, hanya huruf, angka, dan underscore (_).";
+        }
+        if (password.length() < 6) {
+            return "Password minimal 6 karakter.";
+        }
+        if (!password.equals(konfirmasi)) {
+            return "Konfirmasi password tidak sama dengan password.";
+        }
+        return null;
+    }
+
+    private void kembaliKeLogin() {
+        dispose();
+        new FormLogin().setVisible(true);
+    }
+    
     /**
      * @param args the command line arguments
      */

@@ -3,6 +3,11 @@ package projekakhir.aviaryjuragans.dao;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+import projekakhir.aviaryjuragans.model.LogAktivitas;
+import projekakhir.aviaryjuragans.util.DBConnection;
 
 class LogDAO {
 
@@ -14,5 +19,23 @@ class LogDAO {
             ps.setString(2, aktivitas);
             ps.executeUpdate();
         }
+    }
+    
+    public List<LogAktivitas> findRecent(int limit) throws SQLException {
+        String sql = "SELECT l.waktu, COALESCE(u.username, '(dihapus)'), l.aktivitas "
+                + "FROM log_aktivitas l LEFT JOIN users u ON u.id_user = l.id_user "
+                + "ORDER BY l.waktu DESC, l.id_log DESC LIMIT ?";
+        List<LogAktivitas> list = new ArrayList<>();
+        try (Connection c = DBConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new LogAktivitas(rs.getTimestamp(1).toLocalDateTime(),
+                            rs.getString(2), rs.getString(3)));
+                }
+            }
+        }
+        return list;
     }
 }
