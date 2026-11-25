@@ -161,8 +161,6 @@ public class CustomerMainFrame extends javax.swing.JFrame {
 
         jButton1.setText("Pesan");
 
-        jTextField1.setText("jTextField1");
-
         jLabel3.setText("Tanggal Reservasi");
 
         jComboBox2.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));

@@ -181,13 +181,9 @@ public class AdminMainFrame extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        jTextField2.setText("jTextField2");
-
         jComboBox2.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
 
         jButton1.setText("Update");
-
-        jTextField1.setText("jTextField1");
 
         jLabel1.setText("Input Menu");
 
@@ -216,12 +212,10 @@ public class AdminMainFrame extends javax.swing.JFrame {
                         .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                             .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                            .addComponent(jLabel2, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(jComboBox2, javax.swing.GroupLayout.Alignment.LEADING, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                            .addComponent(jLabel3, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 71, Short.MAX_VALUE)
-                            .addComponent(jTextField2, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
+                        .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jComboBox2, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jLabel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
                         .addComponent(jLabel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel4Layout.createSequentialGroup()
@@ -277,8 +271,6 @@ public class AdminMainFrame extends javax.swing.JFrame {
         ));
         jScrollPane1.setViewportView(jTable1);
 
-        jTextField3.setText("jTextField3");
-
         jButton2.setText("Cari");
 
         jLabel5.setText("Masukan Menu");
@@ -331,8 +323,6 @@ public class AdminMainFrame extends javax.swing.JFrame {
         );
 
         jTabbedPane2.addTab("Management Menu", jPanel1);
-
-        jTextField4.setText("jTextField4");
 
         jLabel6.setText("Nomor Meja");
 
@@ -476,8 +466,6 @@ public class AdminMainFrame extends javax.swing.JFrame {
         jButton4.setText("Update");
 
         jComboBox3.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-
-        jTextField5.setText("jTextField5");
 
         jLabel10.setText("Tanggal");
 
@@ -1412,7 +1400,21 @@ public class AdminMainFrame extends javax.swing.JFrame {
         //</editor-fold>
 
         /* Create and display the form */
-        java.awt.EventQueue.invokeLater(() -> new AdminMainFrame().setVisible(true));
+        java.awt.EventQueue.invokeLater(() -> {
+    try {
+        User demo = new projekakhir.aviaryjuragans.dao.UserDAO().findByUsername("admin");
+        if (demo == null) {
+            JOptionPane.showMessageDialog(null,
+                    "User 'admin' tidak ditemukan. Import aviary_db.sql terlebih dahulu.");
+            return;
+        }
+        new AdminMainFrame(demo).setVisible(true);
+    } catch (SQLException ex) {
+        logger.log(java.util.logging.Level.SEVERE, null, ex);
+        JOptionPane.showMessageDialog(null,
+                "Tidak bisa terhubung ke database:\n" + ex.getMessage());
+    }
+});
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
