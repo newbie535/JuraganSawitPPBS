@@ -152,6 +152,7 @@ public class AdminMainFrame extends javax.swing.JFrame {
         jScrollPane11 = new javax.swing.JScrollPane();
         jTable10 = new javax.swing.JTable();
         jLabel15 = new javax.swing.JLabel();
+        LogoutAdminButton = new javax.swing.JButton();
 
         jTable2.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -304,7 +305,7 @@ public class AdminMainFrame extends javax.swing.JFrame {
                     .addComponent(jButton2))
                 .addGap(29, 29, 29)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 245, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(219, Short.MAX_VALUE))
+                .addContainerGap(145, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
@@ -430,7 +431,7 @@ public class AdminMainFrame extends javax.swing.JFrame {
                 .addComponent(jLabel9)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 239, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(242, Short.MAX_VALUE))
+                .addContainerGap(168, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
@@ -525,7 +526,7 @@ public class AdminMainFrame extends javax.swing.JFrame {
                         .addComponent(jButton13)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jButton4)
-                .addGap(0, 262, Short.MAX_VALUE))
+                .addGap(0, 188, Short.MAX_VALUE))
         );
 
         jTabbedPane2.addTab("Management Order", jPanel3);
@@ -641,7 +642,7 @@ public class AdminMainFrame extends javax.swing.JFrame {
                 .addComponent(jLabel15)
                 .addGap(31, 31, 31)
                 .addComponent(jScrollPane11, javax.swing.GroupLayout.PREFERRED_SIZE, 291, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(80, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
@@ -671,19 +672,50 @@ public class AdminMainFrame extends javax.swing.JFrame {
 
         jTabbedPane2.addTab("Laporan Aktivitas", jPanel6);
 
+        LogoutAdminButton.setText("Logout");
+        LogoutAdminButton.addActionListener(this::LogoutAdminButtonActionPerformed);
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(jTabbedPane2)
+            .addGroup(layout.createSequentialGroup()
+                .addGap(25, 25, 25)
+                .addComponent(LogoutAdminButton)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jTabbedPane2)
+            .addGroup(layout.createSequentialGroup()
+                .addComponent(jTabbedPane2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(LogoutAdminButton)
+                .addGap(0, 14, Short.MAX_VALUE))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
+
+    private void LogoutAdminButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_LogoutAdminButtonActionPerformed
+        // TODO add your handling code here:
+        int confirm = javax.swing.JOptionPane.showConfirmDialog(
+            this, 
+            "Apakah Anda yakin ingin keluar dari halaman Admin?", 
+            "Konfirmasi Logout", 
+            javax.swing.JOptionPane.YES_NO_OPTION
+    );
+    
+    if (confirm == javax.swing.JOptionPane.YES_OPTION) {
+        // Buka kembali halaman login
+        FormLogin login = new FormLogin();
+        login.setLocationRelativeTo(null);
+        login.setVisible(true);
+        
+        // Tutup halaman admin saat ini
+        this.dispose(); 
+    }
+    }//GEN-LAST:event_LogoutAdminButtonActionPerformed
 
     // =====================================================================
     //  KERANGKA ADMIN  (milik Orang 1)
@@ -1418,6 +1450,7 @@ public class AdminMainFrame extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton LogoutAdminButton;
     private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton10;
     private javax.swing.JButton jButton11;
